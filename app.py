@@ -11,8 +11,8 @@ CORS(app)  # Mengaktifkan CORS untuk semua endpoint
 BASE_URL = "https://disnakerja.com"
 DATA_DIR = 'data/'
 
-# Fungsi untuk melakukan scraping pekerjaan
-def scrape_job_listings(start_page=1, end_page=20):
+# Fungsi untuk melakukan scraping pekerjaan berdasarkan kategori
+def scrape_job_listings(start_page=1, end_page=20, category=None):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
     }
@@ -20,7 +20,12 @@ def scrape_job_listings(start_page=1, end_page=20):
     job_listings = []
     
     for page in range(start_page, end_page + 1):
-        url = f"{BASE_URL}/page/{page}/"
+        # Menyesuaikan URL dengan kategori yang diberikan
+        if category:
+            url = f"{BASE_URL}/kategori/{category}/page/{page}/"
+        else:
+            url = f"{BASE_URL}/page/{page}/"
+        
         response = requests.get(url, headers=headers)
         
         if response.status_code != 200:
@@ -44,8 +49,7 @@ def scrape_job_listings(start_page=1, end_page=20):
             job_description = article.find('div', class_='entry-content').get_text(strip=True) if article.find('div', class_='entry-content') else None
 
             job_listings.append({
-                'Company Name': title,
-                # 'Job Title': title,
+                'Company Name': company_name,
                 'Job URL': company_url,
                 'Description': job_description
             })
@@ -59,27 +63,34 @@ def save_to_json(job_listings, filename='job_listings.json'):
         json.dump(job_listings, f, ensure_ascii=False, indent=4)
     print(f"Data saved to {os.path.join(DATA_DIR, filename)}")
 
-# Fungsi untuk mendapatkan data pekerjaan
-def get_job_listings():
+# Fungsi untuk mendapatkan data pekerjaan berdasarkan kategori
+def get_job_listings(category=None):
     try:
-        with open(os.path.join(DATA_DIR, 'job_listings.json'), 'r', encoding='utf-8') as f:
+        filename = 'job_listings.json' if not category else f'{category}_job_listings.json'
+        with open(os.path.join(DATA_DIR, filename), 'r', encoding='utf-8') as f:
             job_listings = json.load(f)
         return job_listings
     except FileNotFoundError:
-        print(f"{os.path.join(DATA_DIR, 'job_listings.json')} not found. Scraping and saving data...")
-        job_listings = scrape_job_listings(start_page=1, end_page=10)
-        save_to_json(job_listings)
+        print(f"{os.path.join(DATA_DIR, filename)} not found. Scraping and saving data...")
+        job_listings = scrape_job_listings(start_page=1, end_page=10, category=category)
+        save_to_json(job_listings, filename=filename)
         return job_listings
 
 # Route untuk menampilkan pesan di halaman utama
 @app.route('/')
 def index():
-    return "API success please use /api/jobs"
+    return "API success please use /api/jobs, /api/jobs/bumn, /api/jobs/swasta"
 
 # Endpoint API untuk mendapatkan data pekerjaan
 @app.route('/api/jobs', methods=['GET'])
 def api_get_jobs():
-    job_listings = get_job_listings()  # Memuat data pekerjaan
+    job_listings = get_job_listings()  # Memuat data pekerjaan tanpa kategori
+    return jsonify(job_listings)
+
+# Endpoint API untuk mendapatkan data pekerjaan berdasarkan kategori
+@app.route('/api/jobs/<category>', methods=['GET'])
+def api_get_jobs_by_category(category):
+    job_listings = get_job_listings(category)  # Memuat data pekerjaan berdasarkan kategori
     return jsonify(job_listings)
 
 if __name__ == '__main__':
