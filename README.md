@@ -1,0 +1,1 @@
+please use /api/jobs, /api/jobs/bumn, /api/jobs/swasta, /api/jobs/fresh-graduate
